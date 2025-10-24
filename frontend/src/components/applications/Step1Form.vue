@@ -11,18 +11,13 @@
  */
 
 import { reactive, computed, watch, onMounted } from 'vue'
-import {
-  APP_TEXT,
-  FIELDS,
-  ERRORS,
-  POSITION_OPTIONS,
-} from '@/constants/application'
+import { APP_TEXT, FIELDS, ERRORS, POSITION_OPTIONS } from '@/constants/application'
 import { useApplicationsStore } from '@/stores/applications'
 
 const store = useApplicationsStore()
 const emit = defineEmits(['submit', 'valid-change'])
 
-// --- local state (camelCase) ---------------------------------------------
+// local state (camelCase)
 const form = reactive({
   firstName: '',
   lastName: '',
@@ -60,35 +55,27 @@ const errors = reactive({
   linkedin: '',
 })
 
-// --- helpers & validation -------------------------------------------------
+// validators
 const isEmail = (v) => /\S+@\S+\.\S+/.test(String(v || ''))
 
-// Permissive phone validator:
-// - allows "+", spaces, dashes, dots, parentheses
-// - requires 7..15 digits total
+// Permissive phone validator: allows "+", spaces, dashes, dots, parentheses; requires 7..15 digits total
 const isPhone = (v) => {
   const raw = String(v || '').trim()
   if (!raw) return false
-  // quick shape check (allowed characters)
   if (!/^[+()\-.\s0-9]+$/.test(raw)) return false
-  // digit count
   const digits = raw.replace(/\D/g, '')
   return digits.length >= 7 && digits.length <= 15
 }
-
-// Generic URL (kept for anything else if needed)
-const isUrl = (v) =>
-  /^(https?:\/\/)?([^\s.]+\.\S{2,}|localhost)(\/\S*)?$/i.test(String(v || ''))
 
 // LinkedIn profile URL validator (accepts http/https, www optional, /in/ handle)
 const isLinkedinProfile = (v) =>
   /^https?:\/\/(www\.)?linkedin\.com\/in\/[A-Za-z0-9_%\-]+\/?$/i.test(String(v || ''))
 
 function validate () {
-  // reset all errors
+  // reset errors
   Object.keys(errors).forEach(k => { errors[k] = '' })
 
-  // required checks
+  // required
   if (!form.firstName) errors.firstName = ERRORS.required
   if (!form.lastName)  errors.lastName  = ERRORS.required
   if (!form.email)     errors.email     = ERRORS.required
@@ -98,16 +85,10 @@ function validate () {
   if (!form.position)  errors.position  = ERRORS.required
   if (!form.resumeFile) errors.resumeFile = ERRORS.fileRequired
 
-  // format checks
+  // formats
   if (form.email && !isEmail(form.email)) errors.email = ERRORS.invalidEmail
   if (form.phone && !isPhone(form.phone)) errors.phone = ERRORS.invalidPhone
-
-  // If LinkedIn provided, require a real LinkedIn profile URL (linkedin.com/in/...)
-  if (form.linkedin) {
-    if (!isLinkedinProfile(form.linkedin)) {
-      errors.linkedin = ERRORS.invalidLinkedin
-    }
-  }
+  if (form.linkedin && !isLinkedinProfile(form.linkedin)) errors.linkedin = ERRORS.invalidLinkedin
 }
 
 const isValid = computed(() =>
@@ -124,11 +105,7 @@ const isValid = computed(() =>
 
 // revalidate + notify parent on any change
 watch(
-  () => ({
-    ...form,
-    // avoid noisy deep compare on File object
-    resumePresence: !!form.resumeFile,
-  }),
+  () => ({ ...form, resumePresence: !!form.resumeFile }), // avoid noisy deep compare on File
   () => {
     validate()
     emit('valid-change', isValid.value)
@@ -148,7 +125,7 @@ function onFileChange (e) {
   touch('resumeFile')
 }
 
-// --- restore from store on mount (when the user navigates back) ----------
+// restore from store on mount (when the user navigates back)
 onMounted(() => {
   if (store.hasStep1) {
     const s = store.step1
@@ -164,7 +141,7 @@ onMounted(() => {
   }
 })
 
-// --- submit ---------------------------------------------------------------
+// submit
 function handleSubmit () {
   // treat all fields as touched when submitting
   Object.keys(touched).forEach(k => (touched[k] = true))
@@ -174,7 +151,7 @@ function handleSubmit () {
     return
   }
 
-  // normalize camelCase -> snake_case (payload for API and store)
+  // IMPORTANT: include the actual File (resume_file) so the page can send multipart/form-data
   const payload = {
     first_name: form.firstName,
     last_name: form.lastName,
@@ -183,14 +160,15 @@ function handleSubmit () {
     current_address: form.address,
     date_of_birth: form.dateOfBirth,
     position_applied_for: form.position,
-    // real upload will return a path/key; placeholder for now
-    resume_path: form.resumeFile ? form.resumeFile.name : '',
+    resume_path: form.resumeFile ? form.resumeFile.name : '', // optional filename for convenience
+    resume_file: form.resumeFile || null,                     // <-- the File to upload
     linkedin_profile: form.linkedin || null,
   }
 
   // persist in store so the user can go back and see their data
   store.setStep1(payload)
 
+  // bubble up to page (ApplicationNew.vue will build FormData and POST)
   emit('submit', payload)
 }
 </script>

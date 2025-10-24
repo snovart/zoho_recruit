@@ -13,26 +13,39 @@ const step = ref(1)
 const step1Valid = ref(false)
 const step2Valid = ref(false)
 
-function onStep1ValidChange(ok) {
-  step1Valid.value = ok
-}
-
+function onStep1ValidChange(ok) { step1Valid.value = ok }
 function onStep1Submit(payload) {
-  appStore.setStep1(payload)               // save to store
-  console.log('[New] Step1 saved to store:', payload)
+  appStore.setStep1(payload)
   step.value = 2
 }
-
-function onStep2ValidChange(ok) {
-  step2Valid.value = ok
-}
+function onStep2ValidChange(ok) { step2Valid.value = ok }
 
 async function onStep2Submit(step2Payload) {
-  appStore.setStep2(step2Payload)          // save to store
-  const finalPayload = appStore.merged
-  console.log('[New] Final payload (store.merged):', finalPayload)
-  
-  await axios.post('/api/applications', finalPayload)
+  appStore.setStep2(step2Payload)
+
+  // merge and convert to FormData
+  const data = appStore.merged
+  const fd = new FormData()
+
+  // send the actual file under a conventional field name (adjust if your API expects another key)
+  if (data.resume_file instanceof File) {
+    fd.append('resume', data.resume_file)
+  }
+
+  // append the rest (skip the raw File field)
+  for (const [k, v] of Object.entries(data)) {
+    if (k === 'resume_file' || v === undefined || v === null) continue
+    if (Array.isArray(v)) {
+      fd.append(k, JSON.stringify(v)) // arrays as JSON string
+    } else {
+      fd.append(k, v)
+    }
+  }
+
+  // POST as multipart/form-data
+  await axios.post('/api/applications', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 
   appStore.clear()
   router.push({ name: 'applications.list' })
@@ -51,14 +64,11 @@ function goBackToList() {
     </button>
 
     <div class="mt-4 rounded-xl bg-white p-6 shadow">
-      <!-- stepper -->
       <div class="mb-6 flex items-center gap-3">
         <span class="flex h-6 w-6 items-center justify-center rounded-full"
               :class="step === 1 ? 'bg-violet-600 text-white' : 'bg-gray-200 text-gray-700'">1</span>
         <span :class="step === 1 ? 'text-gray-900' : 'text-gray-500'">Step 1</span>
-
         <span class="mx-2 select-none text-gray-300">—</span>
-
         <span class="flex h-6 w-6 items-center justify-center rounded-full"
               :class="step === 2 ? 'bg-violet-600 text-white' : 'bg-gray-200 text-gray-700'">2</span>
         <span :class="step === 2 ? 'text-gray-900' : 'text-gray-500'">Step 2</span>
