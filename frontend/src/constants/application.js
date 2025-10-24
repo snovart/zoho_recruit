@@ -54,6 +54,8 @@ export const ERRORS = {
   invalidUrl: 'Enter a valid URL.',
   invalidDate: 'Enter a valid date.',
   fileRequired: 'Please upload your resume.',
+  invalidPhone: 'Invalid phone number',
+  invalidLinkedin: 'Invalid LinkedIn URL',
 };
 
 // --- Option lists (value/label) -----------------------------------------

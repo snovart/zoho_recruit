@@ -62,8 +62,27 @@ const errors = reactive({
 
 // --- helpers & validation -------------------------------------------------
 const isEmail = (v) => /\S+@\S+\.\S+/.test(String(v || ''))
-const isUrl   = (v) =>
+
+// Permissive phone validator:
+// - allows "+", spaces, dashes, dots, parentheses
+// - requires 7..15 digits total
+const isPhone = (v) => {
+  const raw = String(v || '').trim()
+  if (!raw) return false
+  // quick shape check (allowed characters)
+  if (!/^[+()\-.\s0-9]+$/.test(raw)) return false
+  // digit count
+  const digits = raw.replace(/\D/g, '')
+  return digits.length >= 7 && digits.length <= 15
+}
+
+// Generic URL (kept for anything else if needed)
+const isUrl = (v) =>
   /^(https?:\/\/)?([^\s.]+\.\S{2,}|localhost)(\/\S*)?$/i.test(String(v || ''))
+
+// LinkedIn profile URL validator (accepts http/https, www optional, /in/ handle)
+const isLinkedinProfile = (v) =>
+  /^https?:\/\/(www\.)?linkedin\.com\/in\/[A-Za-z0-9_%\-]+\/?$/i.test(String(v || ''))
 
 function validate () {
   // reset all errors
@@ -81,7 +100,14 @@ function validate () {
 
   // format checks
   if (form.email && !isEmail(form.email)) errors.email = ERRORS.invalidEmail
-  if (form.linkedin && !isUrl(form.linkedin)) errors.linkedin = ERRORS.invalidUrl
+  if (form.phone && !isPhone(form.phone)) errors.phone = ERRORS.invalidPhone
+
+  // If LinkedIn provided, require a real LinkedIn profile URL (linkedin.com/in/...)
+  if (form.linkedin) {
+    if (!isLinkedinProfile(form.linkedin)) {
+      errors.linkedin = ERRORS.invalidLinkedin
+    }
+  }
 }
 
 const isValid = computed(() =>
@@ -135,7 +161,6 @@ onMounted(() => {
     form.position    = s.position_applied_for || ''
     form.linkedin    = s.linkedin_profile || ''
     // resume_path from server cannot be converted back to a File; keep empty.
-    // The user can re-select the file if needed.
   }
 })
 
