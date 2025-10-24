@@ -1,3 +1,4 @@
+// vite.config.js
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -6,6 +7,7 @@ import vue from '@vitejs/plugin-vue'
 // Vite configuration
 // Adds folder aliases for cleaner imports
 // Example: import MyComp from '@components/MyComp.vue'
+// Also proxies /api/* requests to the backend on :5000
 // ------------------------------------------------------------
 export default defineConfig({
   plugins: [vue()],
@@ -21,6 +23,18 @@ export default defineConfig({
       '@composables': fileURLToPath(new URL('./src/composables', import.meta.url)),
       '@views': fileURLToPath(new URL('./src/views', import.meta.url)),
       '@api': fileURLToPath(new URL('./src/api', import.meta.url)),
+    },
+  },
+
+  server: {
+    port: 5173,
+    proxy: {
+      // /api/* -> http://localhost:5000/api/*
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 })

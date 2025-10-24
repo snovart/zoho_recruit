@@ -1,3 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* frontend/src/assets/app.css */
+@import "tailwindcss";
+
+/* Tell Tailwind where to scan for class names */
+@source "../../index.html";                 /* project root index.html */
+@source "../**/*.{vue,js,ts,jsx,tsx}";      /* all files inside /src */

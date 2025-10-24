@@ -1,22 +1,11 @@
 // frontend/src/main.js
-// ------------------------------------------------------------------
-// Vue 3 + Vite entrypoint
-// Includes: TailwindCSS, Pinia, Router, Axios bootstrap
-// ------------------------------------------------------------------
+import './bootstrap'             // sets up axios globals
+import './assets/app.css'        // tailwind (keep before createApp)
 
-import './assets/app.css'      // Tailwind and global styles
-import './bootstrap'           // Axios (window.axios)
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import router from './router'
 import App from './App.vue'
+import router from '@/router'
 
-// ---- Initialize Vue app ------------------------------------------
 const app = createApp(App)
-
-// ---- Plugins ------------------------------------------------------
-app.use(createPinia())
 app.use(router)
-
-// ---- Mount --------------------------------------------------------
 app.mount('#app')

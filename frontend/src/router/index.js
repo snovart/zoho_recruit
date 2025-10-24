@@ -1,51 +1,55 @@
 // frontend/src/router/index.js
-// Vue Router with a global auth guard.
+// Vue Router setup with auth guard
 
-import { createRouter, createWebHistory } from 'vue-router';
-import { useAuth } from '@/composables/useAuth';
-import { ROUTE_LOGIN, ROUTE_APPS } from '@/constants/auth';
+import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+import { ROUTE_LOGIN } from '@/constants/auth'
 
-// Lazy pages
-const LoginPage = () => import('@/pages/Login.vue');
-const ApplicationsListPage = () => import('@/pages/ApplicationsList.vue');
+// Pages
+import Login from '@/pages/Login.vue'
+import List from '@/pages/List.vue'
+import ApplicationNew from '@/pages/ApplicationNew.vue'
 
 const routes = [
   {
     path: '/login',
     name: 'login',
-    component: LoginPage,
-    meta: { public: true, title: 'Login' },
+    component: Login,
+    meta: { guestOnly: true },
   },
   {
     path: '/',
-    redirect: { name: 'applications.list' },
+    name: 'applications.list',
+    component: List,
+    meta: { requiresAuth: true },
   },
   {
-    path: '/applications',
-    name: 'applications.list',
-    component: ApplicationsListPage,
-    meta: { title: 'My Applications' },
+    path: '/applications/new', // ← new route
+    name: 'applications.new',
+    component: ApplicationNew,
+    meta: { requiresAuth: true },
   },
-];
+]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
-});
+})
 
-// Global guard: redirect based on auth state
+// --- Auth Guards ------------------------------------------------------
+
 router.beforeEach((to) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth()
 
-  // если неавторизован и роут не публичный — на /login
-  if (!to.meta.public && !isAuthenticated.value) {
-    return ROUTE_LOGIN;
+  if (to.meta.requiresAuth && !isAuthenticated.value) {
+    return ROUTE_LOGIN
   }
-  // если уже авторизован и идём на /login — на список заявок
-  if (to.name === 'login' && isAuthenticated.value) {
-    return ROUTE_APPS;
-  }
-  return true;
-});
 
-export default router;
+  if (to.meta.guestOnly && isAuthenticated.value) {
+    return { name: 'applications.list' }
+  }
+
+  return true
+})
+
+export default router
