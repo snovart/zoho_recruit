@@ -32,6 +32,19 @@ const form = reactive({
   linkedin: '',
 })
 
+// which fields the user has interacted with
+const touched = reactive({
+  firstName: false,
+  lastName: false,
+  email: false,
+  phone: false,
+  address: false,
+  dateOfBirth: false,
+  position: false,
+  resumeFile: false,
+  linkedin: false,
+})
+
 const errors = reactive({
   firstName: '',
   lastName: '',
@@ -87,12 +100,21 @@ watch(
   { deep: true, immediate: true }
 )
 
+// mark field as touched (and revalidate) on blur/change
+function touch (key) {
+  touched[key] = true
+  validate()
+}
+
 function onFileChange (e) {
   const f = e.target.files?.[0] || null
   form.resumeFile = f
+  touch('resumeFile')
 }
 
 function handleSubmit () {
+  // when submitting — считаем, что все поля «потроганы»
+  Object.keys(touched).forEach(k => (touched[k] = true))
   validate()
   if (!isValid.value) {
     emit('valid-change', false)
@@ -124,92 +146,99 @@ function handleSubmit () {
       <!-- First name -->
       <div>
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.firstName }}
+          {{ FIELDS.firstName }} <span class="text-red-600">*</span>
         </label>
         <input
           v-model.trim="form.firstName"
+          @blur="touch('firstName')"
           type="text"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="given-name"
         />
-        <p v-if="errors.firstName" class="mt-1 text-sm text-red-600">{{ errors.firstName }}</p>
+        <p v-if="touched.firstName && errors.firstName" class="mt-1 text-sm text-red-600">{{ errors.firstName }}</p>
       </div>
 
       <!-- Last name -->
       <div>
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.lastName }}
+          {{ FIELDS.lastName }} <span class="text-red-600">*</span>
         </label>
         <input
           v-model.trim="form.lastName"
+          @blur="touch('lastName')"
           type="text"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="family-name"
         />
-        <p v-if="errors.lastName" class="mt-1 text-sm text-red-600">{{ errors.lastName }}</p>
+        <p v-if="touched.lastName && errors.lastName" class="mt-1 text-sm text-red-600">{{ errors.lastName }}</p>
       </div>
 
       <!-- Email -->
       <div>
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.email }}
+          {{ FIELDS.email }} <span class="text-red-600">*</span>
         </label>
         <input
           v-model.trim="form.email"
+          @blur="touch('email')"
           type="email"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="email"
         />
-        <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+        <p v-if="touched.email && errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
       </div>
 
       <!-- Phone -->
       <div>
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.phone }}
+          {{ FIELDS.phone }} <span class="text-red-600">*</span>
         </label>
         <input
           v-model.trim="form.phone"
+          @blur="touch('phone')"
           type="text"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="tel"
         />
-        <p v-if="errors.phone" class="mt-1 text-sm text-red-600">{{ errors.phone }}</p>
+        <p v-if="touched.phone && errors.phone" class="mt-1 text-sm text-red-600">{{ errors.phone }}</p>
       </div>
 
       <!-- Address (full width on md) -->
       <div class="md:col-span-2">
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.address }}
+          {{ FIELDS.address }} <span class="text-red-600">*</span>
         </label>
         <textarea
           v-model.trim="form.address"
+          @blur="touch('address')"
           rows="3"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p v-if="errors.address" class="mt-1 text-sm text-red-600">{{ errors.address }}</p>
+        <p v-if="touched.address && errors.address" class="mt-1 text-sm text-red-600">{{ errors.address }}</p>
       </div>
 
       <!-- Date of birth -->
       <div>
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.dateOfBirth }}
+          {{ FIELDS.dateOfBirth }} <span class="text-red-600">*</span>
         </label>
         <input
           v-model="form.dateOfBirth"
+          @blur="touch('dateOfBirth')"
           type="date"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p v-if="errors.dateOfBirth" class="mt-1 text-sm text-red-600">{{ errors.dateOfBirth }}</p>
+        <p v-if="touched.dateOfBirth && errors.dateOfBirth" class="mt-1 text-sm text-red-600">{{ errors.dateOfBirth }}</p>
       </div>
 
       <!-- Position -->
       <div>
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.position }}
+          {{ FIELDS.position }} <span class="text-red-600">*</span>
         </label>
         <select
           v-model="form.position"
+          @blur="touch('position')"
           class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         >
           <option value="" disabled>Select…</option>
@@ -217,13 +246,13 @@ function handleSubmit () {
             {{ opt.label }}
           </option>
         </select>
-        <p v-if="errors.position" class="mt-1 text-sm text-red-600">{{ errors.position }}</p>
+        <p v-if="touched.position && errors.position" class="mt-1 text-sm text-red-600">{{ errors.position }}</p>
       </div>
 
       <!-- Resume -->
       <div class="md:col-span-2">
         <label class="block text-sm font-medium text-gray-700">
-          {{ FIELDS.resume }}
+          {{ FIELDS.resume }} <span class="text-red-600">*</span>
         </label>
         <input
           type="file"
@@ -231,7 +260,7 @@ function handleSubmit () {
           @change="onFileChange"
           class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-indigo-700 hover:file:bg-indigo-100"
         />
-        <p v-if="errors.resumeFile" class="mt-1 text-sm text-red-600">{{ errors.resumeFile }}</p>
+        <p v-if="touched.resumeFile && errors.resumeFile" class="mt-1 text-sm text-red-600">{{ errors.resumeFile }}</p>
       </div>
 
       <!-- LinkedIn -->
@@ -241,11 +270,12 @@ function handleSubmit () {
         </label>
         <input
           v-model.trim="form.linkedin"
+          @blur="touch('linkedin')"
           type="url"
           placeholder="https://linkedin.com/in/…"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p v-if="errors.linkedin" class="mt-1 text-sm text-red-600">{{ errors.linkedin }}</p>
+        <p v-if="touched.linkedin && errors.linkedin" class="mt-1 text-sm text-red-600">{{ errors.linkedin }}</p>
       </div>
     </div>
 

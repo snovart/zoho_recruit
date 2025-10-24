@@ -31,9 +31,8 @@ async function onStep2Submit(step2Payload) {
   appStore.setStep2(step2Payload)          // save to store
   const finalPayload = appStore.merged
   console.log('[New] Final payload (store.merged):', finalPayload)
-
-  // TODO: send to backend
-  // await axios.post('/api/applications', finalPayload)
+  
+  await axios.post('/api/applications', finalPayload)
 
   appStore.clear()
   router.push({ name: 'applications.list' })
@@ -70,7 +69,7 @@ function goBackToList() {
         @valid-change="onStep1ValidChange"
         @submit="onStep1Submit"
       />
-      
+
       <Step2Form
         v-else
         :key="appStore.position || 'step2'"
