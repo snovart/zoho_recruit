@@ -1,11 +1,11 @@
 // src/routes/applications.js
-import { Router } from 'express';
-import { uploadResume } from '../middleware/upload.js';
-import { createApplication } from '../controllers/applicationsController.js';
+import { Router } from "express";
+import { uploadResume } from "../middleware/upload.js";
+import { createApplication } from "../controllers/applicationsController.js";
 
 const router = Router();
 
-// POST /api/applications  (multipart/form-data)
-router.post('/', uploadResume, createApplication);
+// multipart form: "resume" is the file field name
+router.post("/applications", uploadResume.single("resume"), createApplication);
 
 export default router;

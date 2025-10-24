@@ -1,43 +1,33 @@
 // src/middleware/upload.js
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import fs from "fs";
+import path from "path";
+import multer from "multer";
 
-// ensure upload dir exists
-const UPLOAD_DIR = path.resolve(process.cwd(), 'uploads', 'resumes');
+// Ensure uploads/resumes exists
+const UPLOAD_DIR = path.resolve(process.cwd(), "uploads", "resumes");
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// simple filename sanitizer
-function safeName(original) {
-  const base = original.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const ts = Date.now();
-  const dot = base.lastIndexOf('.');
-  const name = dot > -1 ? base.slice(0, dot) : base;
-  const ext  = dot > -1 ? base.slice(dot) : '';
-  return `${name}_${ts}${ext}`;
-}
-
+// Disk storage: uploads/resumes/<original_base>_<ts>.<ext>
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => cb(null, safeName(file.originalname)),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const base = path.basename(file.originalname, ext).replace(/\s+/g, "_");
+    cb(null, `${base}_${Date.now()}${ext}`);
+  },
 });
 
-const fileFilter = (_req, file, cb) => {
-  // allow common doc types
-  const ok = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/rtf',
-    'text/rtf',
-  ].includes(file.mimetype);
-  cb(ok ? null : new Error('Unsupported file type'), ok);
-};
+// Accept only resume-like docs, up to 10 MB
+function fileFilter(_req, file, cb) {
+  const allowed = [".pdf", ".doc", ".docx", ".rtf"];
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!allowed.includes(ext)) return cb(new Error("Invalid file type"), false);
+  cb(null, true);
+}
 
+// Named export used by routes
 export const uploadResume = multer({
   storage,
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-}).single('resume'); // <-- must match FormData key on the client
-
-export { UPLOAD_DIR };
+});

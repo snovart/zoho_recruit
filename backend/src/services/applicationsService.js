@@ -1,66 +1,121 @@
 // src/services/applicationsService.js
-// Business-logic for Applications: DB inserts/selects via Knex.
+// Business logic for Applications: validate, normalize, and INSERT via pg Pool (no label→code mapping)
 
-import { db } from "../db/knex.js";
-
-/**
- * Insert a new application row.
- * NOTE: This function expects enum "codes" that match your migration:
- *   position_applied_for, education_level, notice_period, preferred_location, source_of_application
- *   (e.g. 'software_engineer', 'new_york', ...)
- * Any label→code mapping we will handle in the controller on the next step.
- *
- * @param {number} userId - owner (FK to users.id)
- * @param {object} data  - normalized payload ready for DB columns
- * @returns {Promise<{id:number, created_at:string}>}
- */
-export async function insertApplication(userId, data) {
-  const row = {
-    user_id: userId,
-
-    // Step 1
-    first_name: data.first_name,
-    last_name: data.last_name,
-    email: data.email,
-    phone: data.phone,
-    current_address: data.current_address,
-    date_of_birth: data.date_of_birth,
-    position_applied_for: data.position_applied_for, // enum code
-    resume_path: data.resume_path,                   // saved file path
-    linkedin_profile: data.linkedin_profile ?? null,
-
-    // Step 2
-    education_level: data.education_level,          // enum code
-    years_of_experience: data.years_of_experience,
-    skills: data.skills ?? [],                       // jsonb
-    previous_employer: data.previous_employer ?? null,
-    current_job_title: data.current_job_title ?? null,
-    notice_period: data.notice_period,               // enum code
-    expected_salary: data.expected_salary ?? null,
-    availability_for_interview: data.availability_for_interview ?? null,
-    preferred_location: data.preferred_location ?? null, // enum code or null
-    cover_letter: data.cover_letter ?? null,
-    source_of_application: data.source_of_application,   // enum code
-  };
-
-  // PostgreSQL returns rows; MySQL returns inserted id differently.
-  // Using RETURNING for Postgres; for MySQL you can read insertId from result[0].
-  const [inserted] = await db("applications")
-    .insert(row)
-    .returning(["id", "created_at"]);
-
-  // For MySQL fallback (no RETURNING)
-  return inserted ?? { id: await lastInsertId(), created_at: null };
-}
+import pool from '../db/pool.js';
 
 /**
- * Fallback helper for MySQL (only if RETURNING is not supported).
- * You can remove this if you use Postgres.
+ * Persist a new application.
+ * @param {number} userId - current user id (from auth)
+ * @param {object} form   - raw form fields from req.body (strings by Multer)
+ * @param {object|null} file - Multer file object (req.file) or null
+ * @returns {Promise<{id:number}>}
  */
-async function lastInsertId() {
-  const [{ id }] = await db("applications")
-    .select("id")
-    .orderBy("id", "desc")
-    .limit(1);
-  return id;
+export async function saveApplication(userId, form = {}, file = null) {
+  if (!form || typeof form !== 'object') {
+    throw new Error('No form data received');
+  }
+
+  // Required fields we expect from the frontend (already human-readable values)
+  const required = [
+    'first_name',
+    'last_name',
+    'email',
+    'phone',
+    'current_address',
+    'date_of_birth',
+    'position_applied_for',
+    'education_level',
+    'years_of_experience',
+    'notice_period',
+    'source_of_application',
+  ];
+  for (const k of required) {
+    const v = form[k];
+    if (v === undefined || v === null || v === '') {
+      throw new Error(`Missing required field: ${k}`);
+    }
+  }
+
+  // Helpers
+  const toNumber = (x) =>
+    x === undefined || x === null || x === '' ? null : Number(x);
+  const orNull = (v) => (v === '' ? null : v);
+
+  // Skills can arrive as array / JSON string / CSV
+  let skills = form.skills;
+  if (typeof skills === 'string') {
+    try {
+      skills = JSON.parse(skills);
+    } catch {
+      skills = skills.includes(',')
+        ? skills.split(',').map((s) => s.trim()).filter(Boolean)
+        : (skills ? [skills] : []);
+    }
+  }
+  if (!Array.isArray(skills)) skills = [];
+
+  // Prefer Multer filename if file was uploaded
+  const resumePath = file?.filename ?? form.resume_path ?? null;
+
+  // Build parameter list in the exact column order
+  const columns = [
+    'user_id',
+    'first_name',
+    'last_name',
+    'email',
+    'phone',
+    'current_address',
+    'date_of_birth',
+    'position_applied_for',
+    'resume_path',
+    'linkedin_profile',
+    'education_level',
+    'years_of_experience',
+    'skills',
+    'previous_employer',
+    'current_job_title',
+    'notice_period',
+    'expected_salary',
+    'availability_for_interview',
+    'preferred_location',
+    'cover_letter',
+    'source_of_application',
+  ];
+
+  const values = [
+    userId,
+    form.first_name,
+    form.last_name,
+    form.email,
+    form.phone,
+    form.current_address,
+    form.date_of_birth, // YYYY-MM-DD
+    form.position_applied_for, // already human-readable per your setup
+    resumePath,
+    orNull(form.linkedin_profile),
+    form.education_level,
+    Number(form.years_of_experience),
+    JSON.stringify(skills), // jsonb
+    orNull(form.previous_employer),
+    orNull(form.current_job_title),
+    form.notice_period,
+    toNumber(form.expected_salary),
+    orNull(form.availability_for_interview), // timestamp string or null
+    orNull(form.preferred_location),
+    orNull(form.cover_letter),
+    form.source_of_application,
+  ];
+
+  // Build parametrized INSERT
+  const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+  const sql = `
+    INSERT INTO applications
+      (${columns.join(', ')})
+    VALUES
+      (${placeholders})
+    RETURNING id
+  `;
+
+  const { rows } = await pool.query(sql, values);
+  return { id: rows[0].id };
 }
