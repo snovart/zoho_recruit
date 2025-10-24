@@ -1,10 +1,20 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useApplicationsList } from '@/composables/useApplicationsList'
+import ApplicationListItem from '@/components/applications/ApplicationListItem.vue'
 
 const router = useRouter()
 const { user, signOut } = useAuth()
+
+// apps API hook
+const { apps, isLoading, error, fetchApps } = useApplicationsList()
+
+// load on enter
+onMounted(() => {
+  fetchApps()
+})
 
 const email = computed(() => user.value?.email || '')
 
@@ -37,7 +47,7 @@ function onNewApplication() {
 
       <div class="flex justify-between items-center mb-6">
         <p class="text-gray-600">
-          This will be your applications list page.
+          Your applications
         </p>
 
         <button
@@ -49,8 +59,31 @@ function onNewApplication() {
         </button>
       </div>
 
-      <div class="border-t border-gray-200 pt-4 text-sm text-gray-500">
-        (empty state for now)
+      <!-- loading -->
+      <div v-if="isLoading" class="text-sm text-gray-500">
+        Loading…
+      </div>
+
+      <!-- error -->
+      <div v-else-if="error" class="text-sm text-red-600">
+        {{ error }}
+      </div>
+
+      <!-- empty -->
+      <div
+        v-else-if="!Array.isArray(apps) || apps.length === 0"
+        class="border-t border-gray-200 pt-4 text-sm text-gray-500"
+      >
+        No applications yet.
+      </div>
+
+      <!-- list -->
+      <div v-else class="divide-y divide-gray-200">
+        <ApplicationListItem
+          v-for="app in apps"
+          :key="app.id"
+          :app="app"
+        />
       </div>
     </div>
   </div>
