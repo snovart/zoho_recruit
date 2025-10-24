@@ -32,6 +32,7 @@ frontend/.DS_Store
 # BACKEND
 # =========================================================
 backend/node_modules/
+backend/uploads/
 backend/dist/
 backend/build/
 backend/.env
