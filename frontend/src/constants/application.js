@@ -101,19 +101,48 @@ export const SOURCE_OPTIONS = [
 // Used to show relevant suggestions when a position is selected.
 export const SKILL_SUGGESTIONS = {
   software_engineer: [
-    'JavaScript', 'TypeScript', 'Node.js', 'Vue', 'React', 'SQL', 'NoSQL', 'REST', 'GraphQL', 'Docker',
+    'JavaScript',
+    'Python',
+    'SQL',
+    'Java',
+    'C#',
+    'React',
+    'Node.js',
+    'AWS',
+    'Docker',
+    'Kubernetes',
   ],
   data_analyst: [
-    'SQL', 'Python', 'Pandas', 'Excel', 'Power BI', 'Tableau', 'Statistics', 'Data Modeling',
+    'SQL',
+    'Python',
+    'R',
+    'Excel',
+    'Tableau',
+    'PowerBI',
+    'SAS',
+    'MATLAB',
   ],
   qa_engineer: [
-    'Test Cases', 'Cypress', 'Playwright', 'Selenium', 'Postman', 'API Testing', 'Jest',
+    'Test Automation',
+    'Selenium',
+    'JIRA',
+    'TestRail',
+    'Performance Testing',
   ],
   ux_designer: [
-    'Figma', 'Wireframing', 'Prototyping', 'User Research', 'Usability Testing', 'Design Systems',
+    'Sketch',
+    'Figma',
+    'Adobe XD',
+    'User Research',
+    'Prototyping',
+    'Wireframing',
   ],
   project_manager: [
-    'Agile', 'Scrum', 'Kanban', 'Jira', 'Risk Management', 'Stakeholder Management', 'Roadmapping',
+    'Agile',
+    'Scrum',
+    'Project Planning',
+    'Risk Management',
+    'Budgeting',
   ],
 };
 
