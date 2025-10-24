@@ -1,25 +1,28 @@
 <!-- frontend/src/components/applications/Step1Form.vue -->
 <script setup>
 /**
- * Stage 1 of the application form.
+ * Step 1 of the application form.
  * - Controlled fields with local validation
- * - Literals & options from @/constants/application
+ * - Texts & options from @/constants/application
+ * - Persists/reads payload via Pinia store (applications)
  * - Emits:
  *    submit        -> normalized payload (snake_case) when valid
  *    valid-change  -> boolean on each revalidation
  */
 
-import { reactive, computed, watch } from 'vue'
+import { reactive, computed, watch, onMounted } from 'vue'
 import {
   APP_TEXT,
   FIELDS,
   ERRORS,
   POSITION_OPTIONS,
 } from '@/constants/application'
+import { useApplicationsStore } from '@/stores/applications'
 
+const store = useApplicationsStore()
 const emit = defineEmits(['submit', 'valid-change'])
 
-// local state (camelCase)
+// --- local state (camelCase) ---------------------------------------------
 const form = reactive({
   firstName: '',
   lastName: '',
@@ -28,11 +31,11 @@ const form = reactive({
   address: '',
   dateOfBirth: '',
   position: '',
-  resumeFile: null,   // File object (upload later)
+  resumeFile: null, // File object (upload later)
   linkedin: '',
 })
 
-// which fields the user has interacted with
+// which fields the user has interacted with (for delayed error display)
 const touched = reactive({
   firstName: false,
   lastName: false,
@@ -57,15 +60,16 @@ const errors = reactive({
   linkedin: '',
 })
 
-// simple helpers
+// --- helpers & validation -------------------------------------------------
 const isEmail = (v) => /\S+@\S+\.\S+/.test(String(v || ''))
-const isUrl   = (v) => /^(https?:\/\/)?([^\s.]+\.\S{2,}|localhost)(\/\S*)?$/i.test(String(v || ''))
+const isUrl   = (v) =>
+  /^(https?:\/\/)?([^\s.]+\.\S{2,}|localhost)(\/\S*)?$/i.test(String(v || ''))
 
 function validate () {
-  // reset errors
+  // reset all errors
   Object.keys(errors).forEach(k => { errors[k] = '' })
 
-  // requireds
+  // required checks
   if (!form.firstName) errors.firstName = ERRORS.required
   if (!form.lastName)  errors.lastName  = ERRORS.required
   if (!form.email)     errors.email     = ERRORS.required
@@ -75,22 +79,28 @@ function validate () {
   if (!form.position)  errors.position  = ERRORS.required
   if (!form.resumeFile) errors.resumeFile = ERRORS.fileRequired
 
-  // formats
+  // format checks
   if (form.email && !isEmail(form.email)) errors.email = ERRORS.invalidEmail
   if (form.linkedin && !isUrl(form.linkedin)) errors.linkedin = ERRORS.invalidUrl
 }
 
 const isValid = computed(() =>
-  Object.values(errors).every(v => !v)
-  && !!form.firstName && !!form.lastName && !!form.email && !!form.phone
-  && !!form.address && !!form.dateOfBirth && !!form.position && !!form.resumeFile
+  Object.values(errors).every(v => !v) &&
+  !!form.firstName &&
+  !!form.lastName &&
+  !!form.email &&
+  !!form.phone &&
+  !!form.address &&
+  !!form.dateOfBirth &&
+  !!form.position &&
+  !!form.resumeFile
 )
 
-// revalidate and notify parent on change
+// revalidate + notify parent on any change
 watch(
   () => ({
     ...form,
-    // do not include File object in deep comparison noise
+    // avoid noisy deep compare on File object
     resumePresence: !!form.resumeFile,
   }),
   () => {
@@ -112,8 +122,26 @@ function onFileChange (e) {
   touch('resumeFile')
 }
 
+// --- restore from store on mount (when the user navigates back) ----------
+onMounted(() => {
+  if (store.hasStep1) {
+    const s = store.step1
+    form.firstName   = s.first_name || ''
+    form.lastName    = s.last_name || ''
+    form.email       = s.email || ''
+    form.phone       = s.phone || ''
+    form.address     = s.current_address || ''
+    form.dateOfBirth = s.date_of_birth || ''
+    form.position    = s.position_applied_for || ''
+    form.linkedin    = s.linkedin_profile || ''
+    // resume_path from server cannot be converted back to a File; keep empty.
+    // The user can re-select the file if needed.
+  }
+})
+
+// --- submit ---------------------------------------------------------------
 function handleSubmit () {
-  // when submitting — считаем, что все поля «потроганы»
+  // treat all fields as touched when submitting
   Object.keys(touched).forEach(k => (touched[k] = true))
   validate()
   if (!isValid.value) {
@@ -121,7 +149,7 @@ function handleSubmit () {
     return
   }
 
-  // normalize camelCase -> snake_case (payload for API)
+  // normalize camelCase -> snake_case (payload for API and store)
   const payload = {
     first_name: form.firstName,
     last_name: form.lastName,
@@ -130,10 +158,13 @@ function handleSubmit () {
     current_address: form.address,
     date_of_birth: form.dateOfBirth,
     position_applied_for: form.position,
-    // real upload will return a path/key; keep placeholder for now
+    // real upload will return a path/key; placeholder for now
     resume_path: form.resumeFile ? form.resumeFile.name : '',
     linkedin_profile: form.linkedin || null,
   }
+
+  // persist in store so the user can go back and see their data
+  store.setStep1(payload)
 
   emit('submit', payload)
 }
@@ -155,7 +186,9 @@ function handleSubmit () {
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="given-name"
         />
-        <p v-if="touched.firstName && errors.firstName" class="mt-1 text-sm text-red-600">{{ errors.firstName }}</p>
+        <p v-if="touched.firstName && errors.firstName" class="mt-1 text-sm text-red-600">
+          {{ errors.firstName }}
+        </p>
       </div>
 
       <!-- Last name -->
@@ -170,7 +203,9 @@ function handleSubmit () {
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="family-name"
         />
-        <p v-if="touched.lastName && errors.lastName" class="mt-1 text-sm text-red-600">{{ errors.lastName }}</p>
+        <p v-if="touched.lastName && errors.lastName" class="mt-1 text-sm text-red-600">
+          {{ errors.lastName }}
+        </p>
       </div>
 
       <!-- Email -->
@@ -185,7 +220,9 @@ function handleSubmit () {
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="email"
         />
-        <p v-if="touched.email && errors.email" class="mt-1 text-sm text-red-600">{{ errors.email }}</p>
+        <p v-if="touched.email && errors.email" class="mt-1 text-sm text-red-600">
+          {{ errors.email }}
+        </p>
       </div>
 
       <!-- Phone -->
@@ -200,10 +237,12 @@ function handleSubmit () {
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           autocomplete="tel"
         />
-        <p v-if="touched.phone && errors.phone" class="mt-1 text-sm text-red-600">{{ errors.phone }}</p>
+        <p v-if="touched.phone && errors.phone" class="mt-1 text-sm text-red-600">
+          {{ errors.phone }}
+        </p>
       </div>
 
-      <!-- Address (full width on md) -->
+      <!-- Address -->
       <div class="md:col-span-2">
         <label class="block text-sm font-medium text-gray-700">
           {{ FIELDS.address }} <span class="text-red-600">*</span>
@@ -214,7 +253,9 @@ function handleSubmit () {
           rows="3"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p v-if="touched.address && errors.address" class="mt-1 text-sm text-red-600">{{ errors.address }}</p>
+        <p v-if="touched.address && errors.address" class="mt-1 text-sm text-red-600">
+          {{ errors.address }}
+        </p>
       </div>
 
       <!-- Date of birth -->
@@ -228,7 +269,9 @@ function handleSubmit () {
           type="date"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p v-if="touched.dateOfBirth && errors.dateOfBirth" class="mt-1 text-sm text-red-600">{{ errors.dateOfBirth }}</p>
+        <p v-if="touched.dateOfBirth && errors.dateOfBirth" class="mt-1 text-sm text-red-600">
+          {{ errors.dateOfBirth }}
+        </p>
       </div>
 
       <!-- Position -->
@@ -246,7 +289,9 @@ function handleSubmit () {
             {{ opt.label }}
           </option>
         </select>
-        <p v-if="touched.position && errors.position" class="mt-1 text-sm text-red-600">{{ errors.position }}</p>
+        <p v-if="touched.position && errors.position" class="mt-1 text-sm text-red-600">
+          {{ errors.position }}
+        </p>
       </div>
 
       <!-- Resume -->
@@ -260,7 +305,9 @@ function handleSubmit () {
           @change="onFileChange"
           class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 file:mr-4 file:rounded-md file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-indigo-700 hover:file:bg-indigo-100"
         />
-        <p v-if="touched.resumeFile && errors.resumeFile" class="mt-1 text-sm text-red-600">{{ errors.resumeFile }}</p>
+        <p v-if="touched.resumeFile && errors.resumeFile" class="mt-1 text-sm text-red-600">
+          {{ errors.resumeFile }}
+        </p>
       </div>
 
       <!-- LinkedIn -->
@@ -275,7 +322,9 @@ function handleSubmit () {
           placeholder="https://linkedin.com/in/…"
           class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
-        <p v-if="touched.linkedin && errors.linkedin" class="mt-1 text-sm text-red-600">{{ errors.linkedin }}</p>
+        <p v-if="touched.linkedin && errors.linkedin" class="mt-1 text-sm text-red-600">
+          {{ errors.linkedin }}
+        </p>
       </div>
     </div>
 
@@ -292,5 +341,5 @@ function handleSubmit () {
 </template>
 
 <style scoped>
-/* no @apply here to avoid PostCSS “unknown utility class” errors */
+/* keep empty to avoid PostCSS utility aliasing issues */
 </style>

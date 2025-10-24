@@ -13,6 +13,7 @@ import { reactive, computed, watch } from 'vue'
 import {
   APP_TEXT, FIELDS, ERRORS,
   EDUCATION_OPTIONS, NOTICE_OPTIONS, LOCATION_OPTIONS, SOURCE_OPTIONS,
+  POSITION_OPTIONS,       // ⬅️ добавили для лейбла позиции
 } from '@/constants/application'
 import { useApplicationsStore } from '@/stores/applications'
 
@@ -68,6 +69,12 @@ watch(form, () => {
   emit('valid-change', isValid.value)
 }, { deep: true, immediate: true })
 
+/* ---------- small helpers ---------- */
+function labelOf(options, value) {
+  const found = options.find(o => o.value === value)
+  return found ? found.label : null
+}
+
 /* ---------- skills toggle ---------- */
 function toggleSkill (s) {
   const i = form.skills.indexOf(s)
@@ -86,19 +93,26 @@ function handleSubmit () {
     return
   }
 
+  const positionLabel   = labelOf(POSITION_OPTIONS, appStore.position)
+  const locationLabel   = labelOf(LOCATION_OPTIONS, form.preferredLocation)
+  const educationLabel   = labelOf(EDUCATION_OPTIONS, form.educationLevel)
+  const sourceLabel   = labelOf(SOURCE_OPTIONS, form.source)
+  const noticeLabel   = labelOf(NOTICE_OPTIONS, form.notice)
+
   // produce snake_case payload for step 2
   const step2 = {
-    education_level: form.educationLevel,
+    education_level: educationLabel,
     years_of_experience: Number(form.yearsOfExperience),
     skills: form.skills,
     previous_employer: form.previousEmployer || null,
     current_job_title: form.currentJobTitle || null,
-    notice_period: form.notice,
+    notice_period: noticeLabel,
     expected_salary: form.expectedSalary !== '' ? Number(form.expectedSalary) : null,
     availability_for_interview: form.interviewAt || null,
-    preferred_location: form.preferredLocation || null,
+    position_applied_for: positionLabel,
+    preferred_location: locationLabel,
     cover_letter: form.coverLetter || null,
-    source_of_application: form.source,
+    source_of_application: sourceLabel,
   }
 
   emit('submit', step2)
