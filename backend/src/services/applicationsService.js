@@ -1,20 +1,14 @@
-// src/services/applicationsService.js
+// backend/src/services/applicationsService.js
+import path from 'node:path';
 import pool from '../db/pool.js';
+import { createCandidate, uploadCandidateAttachment } from './zohoRecruitService.js';
 
 /**
- * Insert a new application row (Pool.query version).
- * Casts skills to jsonb explicitly to avoid JSON syntax errors.
- *
- * @param {number} userId
- * @param {object} payload
- * @param {object|null} file
- * @returns {Promise<{id:number}>}
+ * Insert a new application row.
+ * Also triggers Zoho Recruit sync (best-effort) after DB insert.
  */
 export async function saveApplication(userId, payload, file) {
-  // Ensure skills is an array before stringify
   const safeSkills = Array.isArray(payload.skills) ? payload.skills : [];
-
-  // Prefer Multer's stored filename if present
   const resumePath = file?.filename ? file.filename : payload.resume_path || '';
 
   const sql = `
@@ -66,7 +60,7 @@ export async function saveApplication(userId, payload, file) {
     payload.linkedin_profile ?? null,   // $10
     payload.education_level || '',      // $11
     payload.years_of_experience ?? 0,   // $12
-    JSON.stringify(safeSkills),         // $13 (cast to jsonb in SQL)
+    JSON.stringify(safeSkills),         // $13
     payload.previous_employer ?? null,  // $14
     payload.current_job_title ?? null,  // $15
     payload.notice_period || '',        // $16
@@ -78,25 +72,32 @@ export async function saveApplication(userId, payload, file) {
   ];
 
   const { rows } = await pool.query(sql, params);
-  return rows[0];
+  const inserted = rows[0]; // { id }
+
+  // -----------------------------
+  // Best-effort Zoho sync (do not throw)
+  // -----------------------------
+  try {
+    const zohoId = await createCandidate(payload);
+
+    if (resumePath) {
+      const abs = path.resolve(process.cwd(), 'uploads', 'resumes', resumePath);
+      await uploadCandidateAttachment(zohoId, abs);
+    }
+  } catch (e) {
+    console.error('[Zoho sync] createCandidate/upload failed:', e.message);
+  }
+
+  return inserted;
 }
 
 /**
- * Fetch applications of a user with optional pagination/sorting.
- * Sorting is a "col:dir" string, e.g., "created_at:desc". Only allowed columns/dirs are used.
- *
- * @param {number} userId
- * @param {object} [opts]
- * @param {number} [opts.page=1]
- * @param {number} [opts.limit=20]
- * @param {string} [opts.sort='created_at:desc']
- * @returns {Promise<Array>}
+ * Fetch applications for a user with pagination and sorting.
  */
 export async function getApplicationsByUser(
   userId,
   { page = 1, limit = 20, sort = 'created_at:desc' } = {}
 ) {
-  // Whitelist sort to prevent SQL injection
   const [rawCol, rawDir] = String(sort).split(':');
   const ALLOWED_COLS = new Set([
     'created_at',
@@ -110,8 +111,8 @@ export async function getApplicationsByUser(
   const dir = String(rawDir).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
   const safeLimit = Math.max(1, Math.min(Number(limit) || 20, 100));
-  const safePage = Math.max(1, Number(page) || 1);
-  const offset = (safePage - 1) * safeLimit;
+  const safePage  = Math.max(1, Number(page) || 1);
+  const offset    = (safePage - 1) * safeLimit;
 
   const text = `
     SELECT *
@@ -120,15 +121,13 @@ export async function getApplicationsByUser(
     ORDER BY ${col} ${dir}
     LIMIT $2 OFFSET $3
   `;
+
   const { rows } = await pool.query(text, [userId, safeLimit, offset]);
   return rows;
 }
 
 /**
- * Count total applications for a given user.
- *
- * @param {number} userId
- * @returns {Promise<number>}
+ * Count total applications for a user.
  */
 export async function countApplicationsByUser(userId) {
   const { rows } = await pool.query(
