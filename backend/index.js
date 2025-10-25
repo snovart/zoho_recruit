@@ -3,7 +3,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import apiRouter from "./src/routes/index.js";
-import authRouter from "./src/routes/auth.js"; // Auth routes
+import authRouter from "./src/routes/auth.js";
+import zohoRouter from "./src/routes/zoho.js";
 
 // NEW: imports for uploads static and applications router
 import path from "path";
@@ -36,6 +37,8 @@ app.use("/api/auth", authRouter);
 
 // Other API routes
 app.use("/api", apiRouter);
+
+app.use(zohoRouter);
 
 // NEW: Applications API (handles multipart forms with resume file)
 app.use("/api/applications", applicationsRouter);

@@ -42,8 +42,8 @@ async function onStep2Submit(step2Payload) {
 
   await create(fd)
 
-  appStore.clear()
-  router.push({ name: 'applications.list' })
+  // appStore.clear()
+  // router.push({ name: 'applications.list' })
 }
 
 /**
