@@ -1,20 +1,31 @@
 // src/routes/applications.js
 import { Router } from "express";
-import authRequired from "../middleware/authRequired.js";   // <-- protect route
-import { uploadResume } from "../middleware/upload.js";
-import { createApplication } from "../controllers/applicationsController.js";
+import authRequired from "../middleware/authRequired.js";     // Protect routes with JWT (sets req.user)
+import { uploadResume } from "../middleware/upload.js";       // Multer config for file uploads
+import {
+  createApplication,
+  listMyApplications,
+} from "../controllers/applicationsController.js";
 
 const router = Router();
 
 /**
+ * GET /api/applications
+ * Returns applications of the currently authenticated user.
+ * Requires a valid Bearer token (authRequired populates req.user).
+ */
+router.get("/applications", authRequired, listMyApplications);
+
+/**
  * POST /api/applications
- * Protected: requires valid Bearer JWT.
- * Multer handles multipart form; "resume" is the file field name.
+ * Creates a new application for the current user.
+ * - Protected by JWT (authRequired)
+ * - Expects multipart/form-data with the file field named "resume"
  */
 router.post(
   "/applications",
-  authRequired,                    // <-- ensure req.user is set
-  uploadResume.single("resume"),
+  authRequired,                         // ensure req.user is set
+  uploadResume.single("resume"),        // handle single file under "resume"
   createApplication
 );
 

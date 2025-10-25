@@ -9,7 +9,7 @@ import { ref, computed, onMounted } from 'vue'
 import { getMyApplications } from '@/api/applications'
 
 // Simple debounce helper (per-instance)
-function useDebounce () {
+function useDebounce() {
   let t = null
   return (fn, ms = 400) => {
     clearTimeout(t)
@@ -19,9 +19,14 @@ function useDebounce () {
 
 /**
  * Usage:
- * const { items, loading, error, page, limit, total, pageCount, search, sort, load, setPage, setSearch, refresh } = useApplicationsList()
+ * const {
+ *   items, loading, error, page, limit, total, pageCount,
+ *   search, sort, canPrev, canNext,
+ *   load, refresh, setPage, setLimit, setSearch, setSort,
+ *   nextPage, prevPage
+ * } = useApplicationsList()
  */
-export function useApplicationsList (initial = {}) {
+export function useApplicationsList(initial = {}) {
   // ---- state ------------------------------------------------
   const items = ref([])
   const loading = ref(false)
@@ -41,11 +46,12 @@ export function useApplicationsList (initial = {}) {
 
   const canPrev = computed(() => page.value > 1)
   const canNext = computed(() => page.value < pageCount.value)
+  const hasItems = computed(() => (items.value?.length ?? 0) > 0)
 
   // ---- internal ---------------------------------------------
   const debouncer = useDebounce()
 
-  async function load () {
+  async function load() {
     loading.value = true
     error.value = null
     try {
@@ -59,23 +65,24 @@ export function useApplicationsList (initial = {}) {
       // Expected shape: { ok, items, page, limit, total }
       items.value = data.items ?? []
       total.value = Number(data.total ?? 0)
-      // Trust server page/limit if returned
       if (data.page) page.value = data.page
       if (data.limit) limit.value = data.limit
+      return data
     } catch (err) {
       error.value = err
+      items.value = []
+      throw err
     } finally {
       loading.value = false
     }
   }
 
   // Public helpers
-  function refresh () {
-    // no debounce on explicit refresh
+  function refresh() {
     return load()
   }
 
-  function setPage (p) {
+  function setPage(p) {
     const next = Math.max(1, Number(p) || 1)
     if (next !== page.value) {
       page.value = next
@@ -83,33 +90,32 @@ export function useApplicationsList (initial = {}) {
     }
   }
 
-  function setLimit (l) {
+  function setLimit(l) {
     const next = Math.max(1, Number(l) || 20)
     if (next !== limit.value) {
       limit.value = next
-      page.value = 1 // reset to first page
+      page.value = 1
       load()
     }
   }
 
-  function setSearch (q) {
-    // debounce search; reset to first page when query changes
+  function setSearch(q) {
     search.value = q ?? ''
     page.value = 1
     debouncer(load, 400)
   }
 
-  function setSort (s) {
+  function setSort(s) {
     sort.value = s ?? ''
     page.value = 1
     load()
   }
 
-  function nextPage () {
+  function nextPage() {
     if (canNext.value) setPage(page.value + 1)
   }
 
-  function prevPage () {
+  function prevPage() {
     if (canPrev.value) setPage(page.value - 1)
   }
 
@@ -128,6 +134,7 @@ export function useApplicationsList (initial = {}) {
     sort,
     canPrev,
     canNext,
+    hasItems,
     // actions
     load,
     refresh,
