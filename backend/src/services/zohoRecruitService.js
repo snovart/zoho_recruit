@@ -6,7 +6,6 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import FormData from 'form-data' // <— use npm "form-data"
 
 const REGION = process.env.ZOHO_REGION || 'eu'
 const CLIENT_ID = process.env.ZOHO_CLIENT_ID
@@ -64,17 +63,13 @@ async function zohoRequest (method, pathUrl, { headers = {}, json, body } = {}) 
     ...headers,
   }
 
-  // If sending FormData from "form-data", merge its headers (boundary, etc.)
-  if (body && typeof body.getHeaders === 'function') {
-    Object.assign(finalHeaders, body.getHeaders())
-  }
-
   const opts = { method, headers: finalHeaders }
 
   if (json !== undefined) {
     finalHeaders['Content-Type'] = 'application/json'
     opts.body = JSON.stringify(json)
   } else if (body !== undefined) {
+    // When body is Web FormData, do not set Content-Type manually (fetch will set boundary)
     opts.body = body
   }
 
@@ -82,7 +77,6 @@ async function zohoRequest (method, pathUrl, { headers = {}, json, body } = {}) 
   const resText = await res.text()
 
   if (!res.ok) {
-    // try to keep original API error visible
     throw new Error(
       `[Zoho] ${method} ${pathUrl} failed ${res.status} : ${resText.slice(0, 800)}`
     )
@@ -134,15 +128,13 @@ export async function uploadCandidateAttachment (candidateId, absFilePath) {
   if (!stat.isFile() || stat.size === 0) return
 
   const filename = path.basename(absFilePath)
-  const stream   = fs.createReadStream(absFilePath)
+  const buffer   = fs.readFileSync(absFilePath)
 
-  // Build multipart with filename and known length
+  // Web FormData + Blob so Node's fetch sets multipart boundary correctly
   const form = new FormData()
-  form.append('file', stream, {
-    filename,
-    knownLength: stat.size,
-    contentType: 'application/octet-stream',
-  })
+  // REQUIRED by Zoho Recruit for candidate attachments (e.g. "Resume" or "Other")
+  form.append('attachments_category', 'Resume')
+  form.append('file', new Blob([buffer]), filename)
 
   await zohoRequest('POST', `/Candidates/${candidateId}/Attachments`, {
     body: form,
