@@ -54,24 +54,20 @@ export const useApplicationsStore = defineStore('applications', {
   }),
 
   getters: {
-    // keeps compatibility with existing components
+    // compatibility getters
     position: (s) => s.step1?.position_applied_for || '',
     suggestions: (s) =>
       SKILL_SUGGESTIONS[s.step1?.position_applied_for] ?? [],
 
-    // merged payload snapshot
     merged: (s) => ({ ...s.step1, ...s.step2 }),
 
-    // did user touch step1 at all
     hasStep1: (s) => {
       const st = s.step1 || {}
       return Object.values(st).some(hasValue)
     },
 
-    // global dirty flag (any step)
     isDirty () {
       const m = this.merged
-      // explicit file first
       if (m.resume_file instanceof File && m.resume_file.name) return true
       for (const [k, v] of Object.entries(m)) {
         if (k === 'resume_file') continue
@@ -82,17 +78,21 @@ export const useApplicationsStore = defineStore('applications', {
   },
 
   actions: {
+    // Normalize payloads to known shape to avoid stray keys
     setStep1 (payload = {}) {
-      Object.assign(this.step1, payload)
+      this.step1 = { ...initialStep1(), ...payload }
     },
     setStep2 (payload = {}) {
-      Object.assign(this.step2, payload)
+      this.step2 = { ...initialStep2(), ...payload }
     },
+
+    // Replace objects instead of mutating (so extra keys are dropped)
     clear () {
-      Object.assign(this.step1, initialStep1())
-      Object.assign(this.step2, initialStep2())
+      this.step1 = initialStep1()
+      this.step2 = initialStep2()
+      // или так: this.$patch({ step1: initialStep1(), step2: initialStep2() })
     },
-    // convenience helper for guards
+
     hasAnyData () {
       return this.isDirty
     },
