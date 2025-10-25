@@ -3,9 +3,16 @@
 
 import axios from 'axios'
 
-export function createApplication(payload) {
-  // expects normalized snake_case keys as assembled in ApplicationNew.vue
-  return axios.post('/api/applications', payload).then(r => r.data)
+/**
+ * Create a new application (multipart/form-data).
+ * @param {FormData} formData - Prepared FormData instance
+ * @returns {Promise<object>} - API response { ok, id, message }
+ */
+export async function createApplication(formData) {
+  const { data } = await axios.post('/api/applications', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
 }
 
 /**

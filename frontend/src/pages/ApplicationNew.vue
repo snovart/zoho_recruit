@@ -1,13 +1,14 @@
-<!-- frontend/src/pages/ApplicationNew.vue -->
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Step1Form from '@/components/applications/Step1Form.vue'
 import Step2Form from '@/components/applications/Step2Form.vue'
 import { useApplicationsStore } from '@/stores/applications'
+import { useApplicationsCreate } from '@/composables/useApplicationsCreate'
 
 const router = useRouter()
 const appStore = useApplicationsStore()
+const { create, loading } = useApplicationsCreate()
 
 const step = ref(1)
 const step1Valid = ref(false)
@@ -23,35 +24,53 @@ function onStep2ValidChange(ok) { step2Valid.value = ok }
 async function onStep2Submit(step2Payload) {
   appStore.setStep2(step2Payload)
 
-  // merge and convert to FormData
   const data = appStore.merged
   const fd = new FormData()
 
-  // send the actual file under a conventional field name (adjust if your API expects another key)
   if (data.resume_file instanceof File) {
     fd.append('resume', data.resume_file)
   }
 
-  // append the rest (skip the raw File field)
   for (const [k, v] of Object.entries(data)) {
     if (k === 'resume_file' || v === undefined || v === null) continue
     if (Array.isArray(v)) {
-      fd.append(k, JSON.stringify(v)) // arrays as JSON string
+      fd.append(k, JSON.stringify(v))
     } else {
       fd.append(k, v)
     }
   }
 
-  // POST as multipart/form-data
-  await axios.post('/api/applications', fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+  await create(fd)
 
   appStore.clear()
   router.push({ name: 'applications.list' })
 }
 
+/**
+ * Back button handler — confirm if any form input is filled.
+ */
+function hasFilledInputs() {
+  const selectors = ['input', 'textarea', 'select']
+  for (const sel of selectors) {
+    const elements = document.querySelectorAll(sel)
+    for (const el of elements) {
+      if (el.type === 'file') {
+        if (el.files && el.files.length > 0) return true
+      } else if (el.value && el.value.trim() !== '') {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 function goBackToList() {
+  if (hasFilledInputs()) {
+    const ok = window.confirm(
+      'You have entered some data. If you leave now, all progress will be lost. Continue?'
+    )
+    if (!ok) return
+  }
   appStore.clear()
   router.push({ name: 'applications.list' })
 }
@@ -87,10 +106,8 @@ function goBackToList() {
         @back="step = 1"
         @submit="onStep2Submit"
       />
+
+      <div v-if="loading" class="text-sm text-gray-500 mt-4">Submitting...</div>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* no @apply here */
-</style>
