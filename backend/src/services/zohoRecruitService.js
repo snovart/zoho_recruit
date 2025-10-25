@@ -140,3 +140,12 @@ export async function uploadCandidateAttachment (candidateId, absFilePath) {
     body: form,
   })
 }
+
+/**
+ * Fetch all field metadata for the Candidates module.
+ * Returns array of fields with name, data_type, label, and other info.
+ */
+export async function getCandidateFields() {
+  const data = await zohoRequest('GET', '/settings/fields?module=Candidates')
+  return data?.fields || []
+}
