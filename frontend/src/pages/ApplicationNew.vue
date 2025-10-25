@@ -65,9 +65,11 @@ function hasFilledInputs() {
 }
 
 function goBackToList() {
-  if (hasFilledInputs()) {
+  // primary: store-based dirty; fallback: DOM probe
+  const dirty = appStore.hasAnyData() || hasFilledInputs()
+  if (dirty) {
     const ok = window.confirm(
-      'You have entered some data. If you leave now, all progress will be lost. Continue?'
+      'You have entered some data. If you leave now, your progress will be lost. Continue?'
     )
     if (!ok) return
   }
