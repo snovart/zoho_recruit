@@ -86,24 +86,90 @@ async function zohoRequest (method, pathUrl, { headers = {}, json, body } = {}) 
   catch { return resText }
 }
 
+/* ----------------------------- helpers ----------------------------------- */
+// safe numeric casting (string -> number or undefined)
+function toNumber (v) {
+  if (v === null || v === undefined) return undefined
+  const n = Number(String(v).toString().replace(/[^\d.-]/g, ''))
+  return Number.isFinite(n) ? n : undefined
+}
+
+// join array skills -> textarea
+function joinSkills (arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return undefined
+  return arr.join(', ')
+}
+
+// merge several textual bits into Additional Info
+function mergeAdditionalInfo (...parts) {
+  const clean = parts
+    .map(p => (p ?? '').toString().trim())
+    .filter(Boolean)
+  return clean.length ? clean.join(' | ') : undefined
+}
+/* ------------------------------------------------------------------------- */
+
 /**
  * Create a Candidate in Zoho Recruit.
  * Returns created record id (string).
+ *
+ * Maps as many form fields as possible to Zoho Candidate fields:
+ *  - first_name, last_name -> First_Name, Last_Name (mandatory)
+ *  - email -> Email
+ *  - phone -> Mobile
+ *  - preferred_location -> City
+ *  - source_of_application -> Source
+ *  - cover_letter -> Description
+ *  - years_of_experience -> Experience_in_Years (double)
+ *  - previous_employer -> Current_Employer
+ *  - current_job_title -> Current_Job_Title
+ *  - expected_salary -> Expected_Salary (currency)
+ *  - skills (array) -> Skill_Set (textarea, comma-separated)
+ *  - linkedin_profile -> LinkedIn__s
+ *
+ * Things without direct standard fields (date_of_birth, position_applied_for,
+ * education_level, notice_period, availability_for_interview, current_address)
+ * are concatenated into Additional_Info so the data is not lost.
  */
 export async function createCandidate (candidate) {
+  // Build Zoho record with graceful fallbacks and types
+  const record = {
+    // mandatory in Zoho
+    Last_Name: candidate.last_name || candidate.first_name || 'Unknown',
+
+    // straightforward mappings
+    First_Name: candidate.first_name || undefined,
+    Email: candidate.email || undefined,
+    Mobile: candidate.phone || undefined,
+    City: candidate.preferred_location || undefined,
+    Source: candidate.source_of_application || undefined,
+    Description: candidate.cover_letter || undefined,
+    LinkedIn__s: candidate.linkedin_profile || undefined,
+
+    // numeric fields
+    Experience_in_Years: toNumber(candidate.years_of_experience),
+    Expected_Salary: toNumber(candidate.expected_salary),
+
+    // employment-related
+    Current_Employer: candidate.previous_employer || undefined,
+    Current_Job_Title: candidate.current_job_title || undefined,
+
+    // skills textarea
+    Skill_Set: joinSkills(candidate.skills),
+
+    // keep extra info so nothing is lost
+    Additional_Info: mergeAdditionalInfo(
+      candidate.position_applied_for ? `Position: ${candidate.position_applied_for}` : '',
+      candidate.education_level ? `Education: ${candidate.education_level}` : '',
+      candidate.notice_period ? `Notice period: ${candidate.notice_period}` : '',
+      candidate.availability_for_interview ? `Availability: ${candidate.availability_for_interview}` : '',
+      candidate.date_of_birth ? `DOB: ${candidate.date_of_birth}` : '',
+      candidate.current_address ? `Address: ${candidate.current_address}` : ''
+    ),
+  }
+
   const payload = {
-    data: [
-      {
-        // Last_Name is mandatory in Zoho Recruit
-        Last_Name: candidate.last_name || candidate.first_name || 'Unknown',
-        First_Name: candidate.first_name || '',
-        Email: candidate.email || undefined,
-        Mobile: candidate.phone || undefined,
-        City: candidate.preferred_location || undefined,
-        Source: candidate.source_of_application || undefined,
-        Description: candidate.cover_letter || undefined,
-      },
-    ],
+    data: [record],
     trigger: ['workflow'],
   }
 
