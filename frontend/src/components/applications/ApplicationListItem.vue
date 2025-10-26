@@ -22,7 +22,7 @@ function fmtDate (v) {
 </script>
 
 <template>
-  <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition">
+  <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition mb-2">
     <div class="flex justify-between items-center mb-2">
       <h3 class="text-lg font-semibold text-gray-900">
         {{ app.first_name }} {{ app.last_name }}

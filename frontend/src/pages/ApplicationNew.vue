@@ -42,8 +42,8 @@ async function onStep2Submit(step2Payload) {
 
   await create(fd)
 
-  // appStore.clear()
-  // router.push({ name: 'applications.list' })
+  appStore.clear()
+  router.push({ name: 'applications.list' })
 }
 
 /**
@@ -80,7 +80,7 @@ function goBackToList() {
 
 <template>
   <div class="mx-auto max-w-5xl px-4 py-6">
-    <button class="text-sm text-gray-600 hover:underline" @click="goBackToList">
+    <button class="text-sm text-gray-600 hover:underline cursor-pointer" @click="goBackToList">
       ← Back to list
     </button>
 
