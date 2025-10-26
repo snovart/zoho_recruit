@@ -40,7 +40,7 @@ app.use("/api", apiRouter);
 
 app.use(zohoRouter);
 
-// NEW: Applications API (handles multipart forms with resume file)
+// Applications API (handles multipart forms with resume file)
 app.use("/api/applications", applicationsRouter);
 
 // ==============================
