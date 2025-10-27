@@ -119,7 +119,6 @@ function mergeAdditionalInfo (...parts) {
  *  - phone -> Mobile
  *  - preferred_location -> City
  *  - source_of_application -> Source
- *  - cover_letter -> Description
  *  - years_of_experience -> Experience_in_Years (double)
  *  - previous_employer -> Current_Employer
  *  - current_job_title -> Current_Job_Title
@@ -143,7 +142,6 @@ export async function createCandidate (candidate) {
     Mobile: candidate.phone || undefined,
     City: candidate.preferred_location || undefined,
     Source: candidate.source_of_application || undefined,
-    Description: candidate.cover_letter || undefined,
     LinkedIn__s: candidate.linkedin_profile || undefined,
 
     // numeric fields
@@ -164,7 +162,8 @@ export async function createCandidate (candidate) {
       candidate.notice_period ? `Notice period: ${candidate.notice_period}` : '',
       candidate.availability_for_interview ? `Availability: ${candidate.availability_for_interview}` : '',
       candidate.date_of_birth ? `DOB: ${candidate.date_of_birth}` : '',
-      candidate.current_address ? `Address: ${candidate.current_address}` : ''
+      candidate.current_address ? `Address: ${candidate.current_address}` : '',
+      candidate.cover_letter ? `Cover letter:\n${candidate.cover_letter}` : ','
     ),
   }
 
